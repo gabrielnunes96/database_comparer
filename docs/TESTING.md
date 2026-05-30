@@ -1,5 +1,7 @@
 # Testing Guide
 
+> Versão em português: [TESTING.pt-BR.md](TESTING.pt-BR.md)
+
 ## Overview
 
 The solution has three unit test projects under `tests/`. All tests are written with **xUnit** and run without external dependencies (no live database required).

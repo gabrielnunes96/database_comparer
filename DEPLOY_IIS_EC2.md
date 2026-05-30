@@ -1,5 +1,7 @@
 # IIS / EC2 Deployment Guide
 
+> Versão em português: [DEPLOY_IIS_EC2.pt-BR.md](DEPLOY_IIS_EC2.pt-BR.md)
+
 ## Prerequisites (EC2 Windows Server)
 
 1. Install **ASP.NET Core Hosting Bundle 8.x** (includes ASP.NET Core Runtime + IIS module):

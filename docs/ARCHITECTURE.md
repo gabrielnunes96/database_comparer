@@ -1,5 +1,7 @@
 # Architecture Document — Database Schema Tool
 
+> Versão em português: [ARCHITECTURE.pt-BR.md](ARCHITECTURE.pt-BR.md)
+
 ## 1. High-Level Overview
 
 The application is structured as a layered ASP.NET Core 8 solution. The Blazor Server UI talks to a set of orchestration services, which in turn delegate to dialect-specific or dialect-agnostic core components.

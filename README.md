@@ -1,5 +1,7 @@
 # Database Schema Tool
 
+> Versão em português: [README.pt-BR.md](README.pt-BR.md)
+
 A web application for bidirectional conversion and comparison of database schemas between **SQL Server** and **PostgreSQL**, built with ASP.NET Core 8 and Blazor Server.
 
 ---
