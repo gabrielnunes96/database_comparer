@@ -1,0 +1,164 @@
+@using DatabaseTool.Core.Models
+@using DatabaseTool.Web.Services
+@inject SchemaService SchemaService
+
+<div class="mb-3">
+    <label class="form-label fw-semibold">@Label Dialect</label>
+    <select class="form-select" @bind="Dialect" @bind:after="OnDialectChanged">
+        <option value="@DatabaseDialect.SqlServer">SQL Server</option>
+        <option value="@DatabaseDialect.PostgreSQL">PostgreSQL</option>
+    </select>
+</div>
+
+<div class="mb-3">
+    <label class="form-label fw-semibold">Input Mode</label>
+    <div class="btn-group w-100" role="group">
+        <input type="radio" class="btn-check" name="@($"inputmode_{Label}")" id="@($"conn_{Label}")"
+               autocomplete="off" checked="@(InputMode == "connection")"
+               @onchange='() => SetInputMode("connection")' />
+        <label class="btn btn-outline-primary btn-sm" for="@($"conn_{Label}")">Connection</label>
+
+        <input type="radio" class="btn-check" name="@($"inputmode_{Label}")" id="@($"file_{Label}")"
+               autocomplete="off" checked="@(InputMode == "file")"
+               @onchange='() => SetInputMode("file")' />
+        <label class="btn btn-outline-primary btn-sm" for="@($"file_{Label}")">SQL File</label>
+    </div>
+</div>
+
+@if (InputMode == "connection")
+{
+    <div class="mb-2">
+        <label class="form-label">Connection String</label>
+        <input type="password" class="form-control form-control-sm"
+               @bind="ConnectionString" placeholder="@(Dialect == DatabaseDialect.SqlServer ? "Server=.;Database=mydb;Trusted_Connection=True;" : "Host=localhost;Database=mydb;Username=user;Password=pass;")" />
+    </div>
+    <button class="btn btn-sm btn-outline-secondary w-100" @onclick="TestAndLoadObjects" disabled="@_isLoading">
+        @if (_isLoading) { <span class="spinner-border spinner-border-sm me-1"></span> }
+        Test Connection &amp; Load Objects
+    </button>
+    @if (_connectionStatus is not null)
+    {
+        <div class="mt-2 small @(_connectionOk ? "text-success" : "text-danger")">@_connectionStatus</div>
+    }
+}
+else
+{
+    <div class="mb-2">
+        <label class="form-label">Paste SQL Content</label>
+        <textarea class="form-control form-control-sm" rows="6" @bind="SqlContent"
+                  placeholder="Paste your CREATE TABLE / CREATE VIEW / CREATE PROCEDURE statements here..."></textarea>
+    </div>
+    <button class="btn btn-sm btn-outline-secondary w-100" @onclick="ParseFileContent" disabled="@_isLoading">
+        @if (_isLoading) { <span class="spinner-border spinner-border-sm me-1"></span> }
+        Parse SQL
+    </button>
+}
+
+@if (!string.IsNullOrEmpty(_errorMsg))
+{
+    <div class="alert alert-danger mt-2 py-1 px-2 small">@_errorMsg</div>
+}
+
+@code {
+    [Parameter] public DatabaseDialect Dialect { get; set; } = DatabaseDialect.SqlServer;
+    [Parameter] public EventCallback<DatabaseDialect> DialectChanged { get; set; }
+    [Parameter] public string InputMode { get; set; } = "connection";
+    [Parameter] public EventCallback<string> InputModeChanged { get; set; }
+    [Parameter] public string ConnectionString { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> ConnectionStringChanged { get; set; }
+    [Parameter] public string SqlContent { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> SqlContentChanged { get; set; }
+    [Parameter] public EventCallback<List<string>> OnObjectsLoaded { get; set; }
+    [Parameter] public string Label { get; set; } = "Source";
+
+    private bool _isLoading;
+    private string? _connectionStatus;
+    private bool _connectionOk;
+    private string? _errorMsg;
+
+    private async Task OnDialectChanged()
+    {
+        await DialectChanged.InvokeAsync(Dialect);
+    }
+
+    private async Task SetInputMode(string mode)
+    {
+        InputMode = mode;
+        await InputModeChanged.InvokeAsync(mode);
+    }
+
+    private async Task TestAndLoadObjects()
+    {
+        if (string.IsNullOrWhiteSpace(ConnectionString)) return;
+
+        _isLoading = true;
+        _errorMsg = null;
+        _connectionStatus = null;
+
+        try
+        {
+            var ok = await SchemaService.TestConnectionAsync(ConnectionString, Dialect);
+            _connectionOk = ok;
+
+            if (ok)
+            {
+                _connectionStatus = "Connected successfully.";
+                var tables = await SchemaService.ListObjectsAsync(ConnectionString, Dialect, "tables");
+                var views = await SchemaService.ListObjectsAsync(ConnectionString, Dialect, "views");
+                var procs = await SchemaService.ListObjectsAsync(ConnectionString, Dialect, "procedures");
+                var funcs = await SchemaService.ListObjectsAsync(ConnectionString, Dialect, "functions");
+
+                var all = new List<string>();
+                all.AddRange(tables.Select(t => "Table: " + t));
+                all.AddRange(views.Select(v => "View: " + v));
+                all.AddRange(procs.Select(p => "Procedure: " + p));
+                all.AddRange(funcs.Select(f => "Function: " + f));
+
+                await OnObjectsLoaded.InvokeAsync(all);
+            }
+            else
+            {
+                _connectionStatus = "Connection failed.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _connectionOk = false;
+            _errorMsg = ex.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task ParseFileContent()
+    {
+        if (string.IsNullOrWhiteSpace(SqlContent)) return;
+
+        _isLoading = true;
+        _errorMsg = null;
+
+        try
+        {
+            var options = ExtractionOptions.All;
+            var model = await SchemaService.ExtractFromFileAsync(SqlContent, Dialect, options);
+
+            var objects = new List<string>();
+            objects.AddRange(model.Tables.Select(t => "Table: " + t.Name));
+            objects.AddRange(model.Views.Select(v => "View: " + v.Name));
+            objects.AddRange(model.Procedures.Select(p => "Procedure: " + p.Name));
+            objects.AddRange(model.Functions.Select(f => "Function: " + f.Name));
+
+            await OnObjectsLoaded.InvokeAsync(objects);
+        }
+        catch (Exception ex)
+        {
+            _errorMsg = ex.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+}

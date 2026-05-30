@@ -1,0 +1,55 @@
+@using DatabaseTool.Core.Models
+
+<div class="mt-3">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <label class="form-label fw-semibold mb-0">@Label</label>
+        <div>
+            <button class="btn btn-link btn-sm p-0 me-2" @onclick="SelectAll">All</button>
+            <button class="btn btn-link btn-sm p-0" @onclick="SelectNone">None</button>
+        </div>
+    </div>
+    <div style="max-height: 250px; overflow-y: auto;" class="border rounded p-2">
+        @foreach (var obj in Objects)
+        {
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox"
+                       checked="@SelectedObjects.Contains(obj)"
+                       @onchange="(e) => ToggleObject(obj, (bool)(e.Value ?? false))"
+                       id="@($"obj_{obj.GetHashCode()}")" />
+                <label class="form-check-label small" for="@($"obj_{obj.GetHashCode()}")">
+                    @obj
+                </label>
+            </div>
+        }
+    </div>
+    <div class="text-muted small mt-1">@SelectedObjects.Count of @Objects.Count selected</div>
+</div>
+
+@code {
+    [Parameter] public List<string> Objects { get; set; } = new();
+    [Parameter] public List<string> SelectedObjects { get; set; } = new();
+    [Parameter] public EventCallback<List<string>> SelectedObjectsChanged { get; set; }
+    [Parameter] public string Label { get; set; } = "Objects";
+
+    private async Task ToggleObject(string obj, bool selected)
+    {
+        if (selected && !SelectedObjects.Contains(obj))
+            SelectedObjects = new List<string>(SelectedObjects) { obj };
+        else if (!selected)
+            SelectedObjects = SelectedObjects.Where(o => o != obj).ToList();
+
+        await SelectedObjectsChanged.InvokeAsync(SelectedObjects);
+    }
+
+    private async Task SelectAll()
+    {
+        SelectedObjects = new List<string>(Objects);
+        await SelectedObjectsChanged.InvokeAsync(SelectedObjects);
+    }
+
+    private async Task SelectNone()
+    {
+        SelectedObjects = new List<string>();
+        await SelectedObjectsChanged.InvokeAsync(SelectedObjects);
+    }
+}

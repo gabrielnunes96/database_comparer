@@ -1,0 +1,14 @@
+@inherits LocalizedComponentBase
+
+<div class="d-flex gap-1 align-items-center">
+    @foreach (var lang in Translations.SupportedLanguages)
+    {
+        var isCurrent = lang == L.CurrentLanguage;
+        <button class="btn btn-sm @(isCurrent ? "btn-light text-dark fw-bold" : "btn-outline-light")"
+                @onclick="() => L.SetLanguage(lang)"
+                title="@lang"
+                style="font-size:0.75rem; padding: 0.15rem 0.5rem;">
+            @(lang == "pt-BR" ? "🇧🇷 PT" : "🇺🇸 EN")
+        </button>
+    }
+</div>

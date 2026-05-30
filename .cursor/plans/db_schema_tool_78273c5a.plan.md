@@ -4,25 +4,25 @@ overview: Aplicação web ASP.NET Core para conversão bidirecional de schemas d
 todos:
   - id: sprint1-foundation
     content: "Sprint 1: Criar solution, projetos, SchemaModel completo e Extractors via conexão (tabelas/colunas) para SQL Server e PostgreSQL"
-    status: pending
+    status: completed
   - id: sprint2-extraction
     content: "Sprint 2: Extractor via arquivo .sql (ScriptDom + pg_query), adicionar views/procedures/functions/triggers/indexes, granularidade de seleção"
-    status: pending
+    status: completed
   - id: sprint3-conversion
     content: "Sprint 3: TypeMapper configurável, DDL Converter bidirecional (SQL Server ↔ PostgreSQL), conversão best-effort de SP/Functions"
-    status: pending
+    status: completed
   - id: sprint4-diff
     content: "Sprint 4: SchemaDiffer multi-fonte, DiffReport e geração de sync script"
-    status: pending
+    status: completed
   - id: sprint5-execution
     content: "Sprint 5: DryRunEngine (ambos os bancos), ExecutionEngine com log, FileGenerator"
-    status: pending
+    status: completed
   - id: sprint6-ui
     content: "Sprint 6: UI Blazor Server — páginas Converter, Comparator, QueryConverter + componentes de seleção, diff report e dry-run"
-    status: pending
+    status: completed
   - id: sprint7-deploy
     content: "Sprint 7: Configuração IIS/EC2, TypeMapper editável via UI, logging de auditoria"
-    status: pending
+    status: completed
 isProject: false
 ---
 

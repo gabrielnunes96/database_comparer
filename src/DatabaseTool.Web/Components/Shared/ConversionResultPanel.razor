@@ -1,0 +1,78 @@
+@using DatabaseTool.Core.Interfaces
+@using DatabaseTool.Core.Models
+@inject IJSRuntime JS
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span class="fw-semibold">Conversion Result</span>
+        <div class="d-flex gap-2">
+            @if (Result.Warnings.Count > 0)
+            {
+                <span class="badge bg-warning text-dark">@Result.Warnings.Count warning(s)</span>
+            }
+            <button class="btn btn-sm btn-outline-secondary" @onclick="CopyToClipboard">
+                <i class="bi bi-clipboard"></i> Copy
+            </button>
+            <button class="btn btn-sm btn-outline-primary" @onclick="DownloadScript">
+                <i class="bi bi-download"></i> Download .sql
+            </button>
+            @if (OutputMode == "execute")
+            {
+                <button class="btn btn-sm btn-danger" @onclick="OnExecute">
+                    <i class="bi bi-play"></i> Run Dry-Run
+                </button>
+            }
+        </div>
+    </div>
+
+    @if (Result.Warnings.Count > 0)
+    {
+        <div class="card-body border-bottom py-2">
+            <div class="accordion" id="warningsAccordion">
+                <div class="accordion-item border-0">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button py-1 collapsed bg-warning-subtle" type="button"
+                                data-bs-toggle="collapse" data-bs-target="#warningList">
+                            Warnings (@Result.Warnings.Count)
+                        </button>
+                    </h2>
+                    <div id="warningList" class="accordion-collapse collapse">
+                        <div class="accordion-body py-2">
+                            @foreach (var w in Result.Warnings)
+                            {
+                                <div class="mb-1 small">
+                                    <span class="badge @(w.Severity == WarningSeverity.Error ? "bg-danger" : "bg-warning text-dark") me-1">@w.Severity</span>
+                                    <strong>@w.ObjectName</strong>: @w.Message
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <div class="card-body p-0">
+        <pre class="m-0 p-3" style="max-height: 500px; overflow: auto; font-size: 0.8rem; background: #1e1e1e; color: #d4d4d4;">@Script</pre>
+    </div>
+</div>
+
+@code {
+    [Parameter] public ConversionResult Result { get; set; } = null!;
+    [Parameter] public string Script { get; set; } = string.Empty;
+    [Parameter] public string OutputMode { get; set; } = "file";
+    [Parameter] public DatabaseDialect TargetDialect { get; set; }
+    [Parameter] public string TargetConnectionString { get; set; } = string.Empty;
+    [Parameter] public EventCallback OnExecute { get; set; }
+
+    private async Task CopyToClipboard() =>
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", Script);
+
+    private async Task DownloadScript()
+    {
+        var bytes = System.Text.Encoding.UTF8.GetBytes(Script);
+        var base64 = Convert.ToBase64String(bytes);
+        var fileName = $"schema_{DateTime.UtcNow:yyyyMMdd_HHmmss}.sql";
+        await JS.InvokeVoidAsync("downloadFile", base64, fileName);
+    }
+}

@@ -1,0 +1,281 @@
+@page "/converter"
+@inherits LocalizedComponentBase
+@inject SchemaService SchemaService
+@inject AuditService AuditService
+@inject TypeMappingService TypeMappingService
+@inject IJSRuntime JS
+@rendermode InteractiveServer
+
+<PageTitle>@L["converter.title"]</PageTitle>
+
+<div class="container-fluid py-3">
+    <h2>@L["converter.title"]</h2>
+    <p class="text-muted">@L["converter.subtitle"]</p>
+
+    @if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible" role="alert">
+            @_errorMessage
+            <button type="button" class="btn-close" @onclick="() => _errorMessage = null"></button>
+        </div>
+    }
+
+    <div class="row g-3">
+        <!-- SOURCE -->
+        <div class="col-md-5">
+            <div class="card">
+                <div class="card-header fw-semibold">@L["converter.source"]</div>
+                <div class="card-body">
+                    <SourceSelector @bind-Dialect="_sourceDialect"
+                                    @bind-InputMode="_sourceInputMode"
+                                    @bind-ConnectionString="_sourceConnectionString"
+                                    @bind-SqlContent="_sourceSqlContent"
+                                    OnObjectsLoaded="HandleSourceObjectsLoaded"
+                                    Label="Source" />
+
+                    @if (_sourceObjects.Count > 0)
+                    {
+                        <ObjectSelector Objects="_sourceObjects"
+                                        @bind-SelectedObjects="_selectedObjects"
+                                        Label="Select objects to convert" />
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- DIRECTION -->
+        <div class="col-md-2 d-flex align-items-center justify-content-center">
+            <div class="text-center">
+                <div class="mb-2 text-muted small">@L["converter.direction"]</div>
+                <span class="fs-3">→</span>
+                <div class="mt-2">
+                    <select class="form-select form-select-sm" @bind="_conversionDirection">
+                        <option value="@ConversionDirection.SqlServerToPostgreSQL">SQL Server → PostgreSQL</option>
+                        <option value="@ConversionDirection.PostgreSQLToSqlServer">PostgreSQL → SQL Server</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- OPTIONS -->
+        <div class="col-md-5">
+            <div class="card">
+                <div class="card-header fw-semibold">@L["converter.options"]</div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">@L["converter.targetSchema"]</label>
+                        <input class="form-control" @bind="_targetSchema" placeholder="public" />
+                    </div>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" @bind="_includeDropStatements" id="drops" />
+                        <label class="form-check-label" for="drops">@L["converter.includeDrops"]</label>
+                    </div>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" @bind="_useIfNotExists" id="ifnotexists" />
+                        <label class="form-check-label" for="ifnotexists">@L["converter.ifNotExists"]</label>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">@L["converter.output"]</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="output" value="file"
+                                   @onchange='() => _outputMode = "file"' checked='@(_outputMode == "file")' />
+                            <label class="form-check-label">@L["converter.output.file"]</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="output" value="execute"
+                                   @onchange='() => _outputMode = "execute"' checked='@(_outputMode == "execute")' />
+                            <label class="form-check-label">@L["converter.output.execute"]</label>
+                        </div>
+                    </div>
+
+                    @if (_outputMode == "execute")
+                    {
+                        <div class="mb-3">
+                            <label class="form-label">@L["converter.targetConn"]</label>
+                            <input type="password" class="form-control" @bind="_targetConnectionString"
+                                   placeholder="Connection string for target database" />
+                        </div>
+                    }
+
+                    <button class="btn btn-primary w-100" @onclick="RunConversion" disabled="@_isRunning">
+                        @if (_isRunning)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                        }
+                        @(_isRunning ? L["converter.running"] : L["converter.convert"])
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- RESULT -->
+    @if (_conversionResult is not null)
+    {
+        <div class="row mt-4">
+            <div class="col-12">
+                <ConversionResultPanel Result="_conversionResult"
+                                       Script="_generatedScript"
+                                       OutputMode="_outputMode"
+                                       TargetDialect='_conversionDirection == ConversionDirection.SqlServerToPostgreSQL ? DatabaseDialect.PostgreSQL : DatabaseDialect.SqlServer'
+                                       TargetConnectionString="_targetConnectionString"
+                                       OnExecute="HandleExecute" />
+            </div>
+        </div>
+    }
+
+    <!-- DRY RUN -->
+    @if (_dryRunReport is not null)
+    {
+        <div class="row mt-4">
+            <div class="col-12">
+                <ExecutionReportPanel Report="_dryRunReport" Title="Dry-Run Report"
+                                      OnConfirmExecute="HandleConfirmExecute"
+                                      ShowConfirm="@(!_dryRunReport.HasErrors)" />
+            </div>
+        </div>
+    }
+
+    <!-- EXECUTION REPORT -->
+    @if (_executionReport is not null)
+    {
+        <div class="row mt-4">
+            <div class="col-12">
+                <ExecutionReportPanel Report="_executionReport" Title="Execution Report" />
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private DatabaseDialect _sourceDialect = DatabaseDialect.SqlServer;
+    private string _sourceInputMode = "connection";
+    private string _sourceConnectionString = string.Empty;
+    private string _sourceSqlContent = string.Empty;
+    private ConversionDirection _conversionDirection = ConversionDirection.SqlServerToPostgreSQL;
+    private string _targetSchema = "public";
+    private bool _includeDropStatements;
+    private bool _useIfNotExists = true;
+    private string _outputMode = "file";
+    private string _targetConnectionString = string.Empty;
+
+    private List<string> _sourceObjects = new();
+    private List<string> _selectedObjects = new();
+
+    private bool _isRunning;
+    private string? _errorMessage;
+    private ConversionResult? _conversionResult;
+    private string _generatedScript = string.Empty;
+    private ExecutionReport? _dryRunReport;
+    private ExecutionReport? _executionReport;
+
+    private void HandleSourceObjectsLoaded(List<string> objects) => _sourceObjects = objects;
+
+    private async Task RunConversion()
+    {
+        _isRunning = true;
+        _errorMessage = null;
+        _conversionResult = null;
+        _dryRunReport = null;
+        _executionReport = null;
+
+        try
+        {
+            var options = BuildExtractionOptions();
+            SchemaModel source;
+
+            if (_sourceInputMode == "connection")
+                source = await SchemaService.ExtractFromConnectionAsync(_sourceConnectionString, _sourceDialect, options);
+            else
+                source = await SchemaService.ExtractFromFileAsync(_sourceSqlContent, _sourceDialect, options);
+
+            var convOptions = new ConversionOptions
+            {
+                TargetSchema = string.IsNullOrWhiteSpace(_targetSchema) ? "public" : _targetSchema,
+                IncludeDropStatements = _includeDropStatements,
+                UseIfNotExists = _useIfNotExists,
+                TypeMapping = TypeMappingService.Active
+            };
+
+            _conversionResult = await SchemaService.ConvertAsync(source, _conversionDirection, convOptions);
+            _generatedScript = SchemaService.GenerateFileContent(
+                _conversionResult.Script,
+                source.SourceDescription,
+                _outputMode == "execute" ? _targetConnectionString : "File Output",
+                _conversionDirection == ConversionDirection.SqlServerToPostgreSQL ? DatabaseDialect.PostgreSQL : DatabaseDialect.SqlServer);
+
+            AuditService.Log("Convert", source.SourceDescription, "Output", !_conversionResult.HasErrors);
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _isRunning = false;
+        }
+    }
+
+    private async Task HandleExecute()
+    {
+        _isRunning = true;
+        _dryRunReport = null;
+        _errorMessage = null;
+
+        try
+        {
+            var targetDialect = _conversionDirection == ConversionDirection.SqlServerToPostgreSQL
+                ? DatabaseDialect.PostgreSQL
+                : DatabaseDialect.SqlServer;
+
+            _dryRunReport = await SchemaService.DryRunAsync(_targetConnectionString, targetDialect, _generatedScript);
+            AuditService.Log("DryRun", "Generated Script", _targetConnectionString, !_dryRunReport.HasErrors);
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _isRunning = false;
+        }
+    }
+
+    private async Task HandleConfirmExecute()
+    {
+        _isRunning = true;
+        _executionReport = null;
+        _errorMessage = null;
+
+        try
+        {
+            var targetDialect = _conversionDirection == ConversionDirection.SqlServerToPostgreSQL
+                ? DatabaseDialect.PostgreSQL
+                : DatabaseDialect.SqlServer;
+
+            _executionReport = await SchemaService.ExecuteAsync(_targetConnectionString, targetDialect, _generatedScript);
+            AuditService.Log("Execute", "Generated Script", _targetConnectionString, !_executionReport.HasErrors);
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _isRunning = false;
+        }
+    }
+
+    private ExtractionOptions BuildExtractionOptions()
+    {
+        if (_selectedObjects.Count == 0) return ExtractionOptions.All;
+        return new ExtractionOptions
+        {
+            TableFilter = _selectedObjects,
+            ViewFilter = _selectedObjects,
+            ProcedureFilter = _selectedObjects,
+            FunctionFilter = _selectedObjects
+        };
+    }
+}

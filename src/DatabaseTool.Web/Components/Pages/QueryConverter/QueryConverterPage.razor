@@ -1,0 +1,101 @@
+@page "/query-converter"
+@inherits LocalizedComponentBase
+@inject QueryConverter QueryConverter
+@rendermode InteractiveServer
+
+<PageTitle>@L["query.title"]</PageTitle>
+
+<div class="container-fluid py-3">
+    <h2>@L["query.title"]</h2>
+    <p class="text-muted">@L["query.subtitle"]</p>
+
+    <div class="row g-3 mb-3">
+        <div class="col-12">
+            <div class="d-flex gap-2 align-items-center">
+                <label class="fw-semibold me-2">@L["query.direction"]</label>
+                <div class="btn-group" role="group">
+                    <input type="radio" class="btn-check" name="direction" id="ss2pg" autocomplete="off"
+                           checked="@(_direction == "ss2pg")" @onchange='() => _direction = "ss2pg"' />
+                    <label class="btn btn-outline-primary btn-sm" for="ss2pg">@L["query.ss2pg"]</label>
+
+                    <input type="radio" class="btn-check" name="direction" id="pg2ss" autocomplete="off"
+                           checked="@(_direction == "pg2ss")" @onchange='() => _direction = "pg2ss"' />
+                    <label class="btn btn-outline-primary btn-sm" for="pg2ss">@L["query.pg2ss"]</label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header fw-semibold">
+                    @(_direction == "ss2pg" ? L["query.inputTsql"] : L["query.inputPg"])
+                </div>
+                <div class="card-body p-2">
+                    <textarea class="form-control font-monospace"
+                              style="height: 400px; font-size: 0.85rem; resize: none;"
+                              @bind="_inputQuery"
+                              placeholder="@L["query.placeholder"]"></textarea>
+                </div>
+                <div class="card-footer">
+                    <button class="btn btn-primary w-100" @onclick="Convert">@L["query.convert"]</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center fw-semibold">
+                    @(_direction == "ss2pg" ? L["query.outputPg"] : L["query.outputTsql"])
+                    @if (!string.IsNullOrEmpty(_outputQuery))
+                    {
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="CopyOutput">
+                            <i class="bi bi-clipboard"></i> @L["query.copy"]
+                        </button>
+                    }
+                </div>
+                <div class="card-body p-2">
+                    <textarea class="form-control font-monospace"
+                              style="height: 400px; font-size: 0.85rem; resize: none; background: #f8f9fa;"
+                              readonly value="@_outputQuery"></textarea>
+                </div>
+                @if (_warnings.Count > 0)
+                {
+                    <div class="card-footer bg-warning-subtle">
+                        <div class="small fw-semibold mb-1">@L["query.warnings"]</div>
+                        @foreach (var w in _warnings)
+                        {
+                            <div class="small text-warning-emphasis">⚠ @w</div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string _direction = "ss2pg";
+    private string _inputQuery = string.Empty;
+    private string _outputQuery = string.Empty;
+    private List<string> _warnings = new();
+    [Inject] private IJSRuntime JS { get; set; } = null!;
+
+    private void Convert()
+    {
+        if (string.IsNullOrWhiteSpace(_inputQuery)) return;
+
+        QueryConversionResult result;
+        if (_direction == "ss2pg")
+            result = QueryConverter.ConvertSqlServerToPostgreSQL(_inputQuery);
+        else
+            result = QueryConverter.ConvertPostgreSQLToSqlServer(_inputQuery);
+
+        _outputQuery = result.ConvertedQuery;
+        _warnings = result.Warnings;
+    }
+
+    private async Task CopyOutput() =>
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", _outputQuery);
+}

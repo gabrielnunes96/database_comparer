@@ -1,0 +1,62 @@
+@using DatabaseTool.Web.Components.Shared
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center fw-semibold">
+        @Direction
+        <button class="btn btn-sm btn-outline-success" @onclick="AddRow">@AddLabel</button>
+    </div>
+    <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+        <table class="table table-sm table-hover mb-0">
+            <thead class="table-light sticky-top">
+                <tr>
+                    <th>@SourceLabel</th>
+                    <th>@TargetLabel</th>
+                    <th style="width:40px;"></th>
+                </tr>
+            </thead>
+            <tbody>
+                @for (int i = 0; i < Mappings.Count; i++)
+                {
+                    var row = Mappings[i];
+                    var index = i;
+                    <tr>
+                        <td>
+                            <input class="form-control form-control-sm font-monospace"
+                                   value="@row.Source"
+                                   @oninput="e => { row.Source = e.Value?.ToString() ?? string.Empty; OnChanged.InvokeAsync(); }" />
+                        </td>
+                        <td>
+                            <input class="form-control form-control-sm font-monospace"
+                                   value="@row.Target"
+                                   @oninput="e => { row.Target = e.Value?.ToString() ?? string.Empty; OnChanged.InvokeAsync(); }" />
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-danger" @onclick="() => RemoveRow(index)">×</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string Direction { get; set; } = string.Empty;
+    [Parameter] public List<MappingRow> Mappings { get; set; } = new();
+    [Parameter] public string SourceLabel { get; set; } = "Source Type";
+    [Parameter] public string TargetLabel { get; set; } = "Target Type";
+    [Parameter] public string AddLabel { get; set; } = "+ Add Row";
+    [Parameter] public EventCallback OnChanged { get; set; }
+
+    private async Task AddRow()
+    {
+        Mappings.Add(new MappingRow());
+        await OnChanged.InvokeAsync();
+    }
+
+    private async Task RemoveRow(int index)
+    {
+        Mappings.RemoveAt(index);
+        await OnChanged.InvokeAsync();
+    }
+}

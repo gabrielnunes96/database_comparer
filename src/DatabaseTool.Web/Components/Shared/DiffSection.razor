@@ -1,0 +1,59 @@
+@using DatabaseTool.Web.Components.Shared
+@if (Section.OnlyInSource.Count > 0 || Section.OnlyInTarget.Count > 0 || Section.Different.Count > 0)
+{
+    <div class="mb-3">
+        <h6><i class="bi @Icon me-2"></i>@Title
+            <span class="badge bg-secondary ms-2">@(Section.OnlyInSource.Count + Section.OnlyInTarget.Count + Section.Different.Count)</span>
+        </h6>
+        <div class="row g-2">
+            @if (Section.OnlyInSource.Count > 0)
+            {
+                <div class="col-md-4">
+                    <div class="card border-success">
+                        <div class="card-header py-1 bg-success-subtle small fw-semibold">Only in Source (@Section.OnlyInSource.Count)</div>
+                        <ul class="list-group list-group-flush" style="max-height:150px; overflow-y:auto;">
+                            @foreach (var item in Section.OnlyInSource)
+                            {
+                                <li class="list-group-item py-1 small text-success">+ @item</li>
+                            }
+                        </ul>
+                    </div>
+                </div>
+            }
+            @if (Section.OnlyInTarget.Count > 0)
+            {
+                <div class="col-md-4">
+                    <div class="card border-danger">
+                        <div class="card-header py-1 bg-danger-subtle small fw-semibold">Only in Target (@Section.OnlyInTarget.Count)</div>
+                        <ul class="list-group list-group-flush" style="max-height:150px; overflow-y:auto;">
+                            @foreach (var item in Section.OnlyInTarget)
+                            {
+                                <li class="list-group-item py-1 small text-danger">- @item</li>
+                            }
+                        </ul>
+                    </div>
+                </div>
+            }
+            @if (Section.Different.Count > 0)
+            {
+                <div class="col-md-4">
+                    <div class="card border-warning">
+                        <div class="card-header py-1 bg-warning-subtle small fw-semibold">Modified (@Section.Different.Count)</div>
+                        <ul class="list-group list-group-flush" style="max-height:150px; overflow-y:auto;">
+                            @foreach (var item in Section.Different)
+                            {
+                                <li class="list-group-item py-1 small text-warning-emphasis">~ @item</li>
+                            }
+                        </ul>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public string Title { get; set; } = string.Empty;
+    [Parameter] public string Icon { get; set; } = "bi-box";
+    [Parameter] public DiffSectionData Section { get; set; } = new();
+}

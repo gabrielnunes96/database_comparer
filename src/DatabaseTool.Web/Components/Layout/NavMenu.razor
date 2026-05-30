@@ -1,0 +1,45 @@
+﻿@inherits LocalizedComponentBase
+
+<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid d-flex justify-content-between align-items-center">
+        <a class="navbar-brand" href="">DB Schema Tool</a>
+        <LanguageSwitcher />
+    </div>
+</div>
+
+<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+
+<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
+    <nav class="flex-column">
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> @L["nav.home"]
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="converter">
+                <span class="bi bi-arrow-left-right" aria-hidden="true"></span> @L["nav.converter"]
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="comparator">
+                <span class="bi bi-file-diff" aria-hidden="true"></span> @L["nav.comparator"]
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="query-converter">
+                <span class="bi bi-code-square" aria-hidden="true"></span> @L["nav.queryConverter"]
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="type-mapping">
+                <span class="bi bi-table" aria-hidden="true"></span> @L["nav.typeMapping"]
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="audit">
+                <span class="bi bi-clock-history" aria-hidden="true"></span> @L["nav.auditLog"]
+            </NavLink>
+        </div>
+    </nav>
+</div>

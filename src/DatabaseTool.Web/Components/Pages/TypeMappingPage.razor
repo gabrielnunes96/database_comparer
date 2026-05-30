@@ -1,0 +1,89 @@
+@page "/type-mapping"
+@inherits LocalizedComponentBase
+@inject TypeMappingService TypeMappingService
+@rendermode InteractiveServer
+
+<PageTitle>@L["typeMapping.title"]</PageTitle>
+
+<div class="container-fluid py-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h2>@L["typeMapping.title"]</h2>
+            <p class="text-muted mb-0">@L["typeMapping.subtitle"]</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-danger btn-sm" @onclick="Reset">@L["typeMapping.reset"]</button>
+            <button class="btn btn-primary btn-sm" @onclick="Save" disabled="@_saved">
+                @(_saved ? L["typeMapping.saved"] : L["typeMapping.save"])
+            </button>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(_message))
+    {
+        <div class="alert alert-success alert-dismissible py-2">
+            @_message
+            <button type="button" class="btn-close btn-sm" @onclick="() => _message = null"></button>
+        </div>
+    }
+
+    <div class="row g-4">
+        <div class="col-md-6">
+            <MappingTable Direction="@L["typeMapping.ss2pg"]"
+                          Mappings="_ss2pg"
+                          SourceLabel="@L["typeMapping.sourceType"]"
+                          TargetLabel="@L["typeMapping.targetType"]"
+                          AddLabel="@L["typeMapping.addRow"]"
+                          OnChanged="() => _saved = false" />
+        </div>
+        <div class="col-md-6">
+            <MappingTable Direction="@L["typeMapping.pg2ss"]"
+                          Mappings="_pg2ss"
+                          SourceLabel="@L["typeMapping.sourceType"]"
+                          TargetLabel="@L["typeMapping.targetType"]"
+                          AddLabel="@L["typeMapping.addRow"]"
+                          OnChanged="() => _saved = false" />
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<MappingRow> _ss2pg = new();
+    private List<MappingRow> _pg2ss = new();
+    private bool _saved = true;
+    private string? _message;
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        LoadFromService();
+    }
+
+    private void LoadFromService()
+    {
+        var config = TypeMappingService.Active;
+        _ss2pg = config.SqlServerToPostgreSQL.Select(kv => new MappingRow(kv.Key, kv.Value)).ToList();
+        _pg2ss = config.PostgreSQLToSqlServer.Select(kv => new MappingRow(kv.Key, kv.Value)).ToList();
+    }
+
+    private void Save()
+    {
+        var config = new TypeMappingConfig();
+        foreach (var row in _ss2pg.Where(r => !string.IsNullOrWhiteSpace(r.Source)))
+            config.SqlServerToPostgreSQL[row.Source.Trim()] = row.Target.Trim();
+        foreach (var row in _pg2ss.Where(r => !string.IsNullOrWhiteSpace(r.Source)))
+            config.PostgreSQLToSqlServer[row.Source.Trim()] = row.Target.Trim();
+
+        TypeMappingService.Update(config);
+        _saved = true;
+        _message = L["typeMapping.msgSaved"];
+    }
+
+    private void Reset()
+    {
+        TypeMappingService.Reset();
+        LoadFromService();
+        _saved = true;
+        _message = L["typeMapping.msgReset"];
+    }
+}
